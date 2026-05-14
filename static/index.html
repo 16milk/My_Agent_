@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My_Agent_ — 本地对话</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1115;
+      --panel: #161a22;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #7aa2f7;
+      --border: #2a3140;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    header .meta { font-size: 12px; color: var(--muted); }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 12px;
+      gap: 10px;
+    }
+    #log {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .msg { margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
+    .msg.user { color: #c0caf5; }
+    .msg.assistant { color: #bbdfc4; }
+    .msg.system { color: var(--muted); font-size: 12px; }
+    form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    textarea {
+      flex: 1;
+      min-height: 72px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b0d12;
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: #1f2430;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.primary { border-color: #3d5080; background: #243354; color: #dbe7ff; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>My_Agent_ 本地对话（流式 + 工具）</h1>
+      <div class="meta" id="sessionLine">会话：未创建</div>
+    </div>
+    <div class="row">
+      <button type="button" id="btnNew">新建会话</button>
+      <button type="button" id="btnClear">清空历史</button>
+    </div>
+  </header>
+  <main>
+    <div id="log"></div>
+    <form id="f">
+      <textarea id="t" placeholder="输入消息，Enter 发送（Shift+Enter 换行）"></textarea>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;">
+        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
+          <input type="checkbox" id="useTools" checked />
+          启用工具（read_file；http_get 需配置 TOOL_HTTP_ALLOWED_HOSTS）
+        </label>
+        <button class="primary" type="submit" id="send">发送</button>
+      </div>
+    </form>
+    <div class="meta row">
+      <span>API：<code>/api/sessions/…/chat/stream</code>（NDJSON）</span>
+      <span id="rid"></span>
+    </div>
+  </main>
+  <script>
+    const logEl = document.getElementById("log");
+    const sessionLine = document.getElementById("sessionLine");
+    const ridEl = document.getElementById("rid");
+    const t = document.getElementById("t");
+    const send = document.getElementById("send");
+
+    let sessionId = localStorage.getItem("my_agent_session_id") || "";
+
+    function append(role, text) {
+      const p = document.createElement("p");
+      p.className = "msg " + role;
+      p.textContent = (role === "user" ? "你：\n" : role === "assistant" ? "助手：\n" : "") + text;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function systemLine(text) {
+      const p = document.createElement("p");
+      p.className = "msg system";
+      p.textContent = text;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setSession(id) {
+      sessionId = id;
+      localStorage.setItem("my_agent_session_id", id);
+      sessionLine.textContent = "会话：" + id;
+    }
+
+    async function ensureSession() {
+      if (sessionId) return sessionId;
+      const r = await fetch("/api/sessions", { method: "POST" });
+      if (!r.ok) throw new Error("创建会话失败：" + r.status);
+      const j = await r.json();
+      setSession(j.id);
+      systemLine("已创建新会话。");
+      return sessionId;
+    }
+
+    async function loadHistory() {
+      if (!sessionId) return;
+      const r = await fetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages");
+      if (r.status === 404) {
+        setSession("");
+        systemLine("本地会话 id 无效，请新建会话。");
+        return;
+      }
+      if (!r.ok) throw new Error("加载历史失败：" + r.status);
+      const items = await r.json();
+      logEl.innerHTML = "";
+      for (const m of items) {
+        if (m.role === "user") append("user", m.content);
+        if (m.role === "assistant") append("assistant", m.content);
+      }
+    }
+
+    document.getElementById("btnNew").onclick = async () => {
+      const r = await fetch("/api/sessions", { method: "POST" });
+      if (!r.ok) return alert("创建会话失败");
+      const j = await r.json();
+      setSession(j.id);
+      logEl.innerHTML = "";
+      systemLine("已创建新会话。");
+    };
+
+    document.getElementById("btnClear").onclick = async () => {
+      if (!sessionId) return alert("没有会话");
+      const r = await fetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages", { method: "DELETE" });
+      if (!r.ok && r.status !== 204) return alert("清空失败");
+      logEl.innerHTML = "";
+      systemLine("已清空本会话消息（系统提示仍会在服务端默认注入）。");
+    };
+
+    document.getElementById("f").onsubmit = async (e) => {
+      e.preventDefault();
+      const text = t.value.trim();
+      if (!text) return;
+      send.disabled = true;
+      try {
+        const sid = await ensureSession();
+        append("user", text);
+        t.value = "";
+
+        const useTools = document.getElementById("useTools").checked;
+        const resp = await fetch(
+          "/api/sessions/" + encodeURIComponent(sid) + "/chat/stream",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text, use_tools: useTools }),
+          }
+        );
+        const reqId = resp.headers.get("x-request-id") || "";
+        ridEl.textContent = reqId ? ("Request-ID: " + reqId) : "";
+
+        if (!resp.ok || !resp.body) {
+          const errText = await resp.text();
+          throw new Error(errText || ("HTTP " + resp.status));
+        }
+
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        let assistant = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let idx;
+          while ((idx = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, idx).trim();
+            buf = buf.slice(idx + 1);
+            if (!line) continue;
+            let obj;
+            try { obj = JSON.parse(line); } catch { continue; }
+            if (obj.type === "delta" && obj.text) {
+              assistant += obj.text;
+              const last = logEl.querySelector(".msg.assistant.streaming");
+              if (!last) {
+                const p = document.createElement("p");
+                p.className = "msg assistant streaming";
+                p.textContent = "助手：\n" + assistant;
+                logEl.appendChild(p);
+              } else {
+                last.textContent = "助手：\n" + assistant;
+              }
+              logEl.scrollTop = logEl.scrollHeight;
+            }
+            if (obj.type === "tool_call") {
+              systemLine("工具调用：" + obj.name + " " + (obj.arguments || ""));
+            }
+            if (obj.type === "tool_result") {
+              const preview = (obj.content || "").slice(0, 500);
+              systemLine("工具结果：" + obj.name + " → " + preview + (obj.content && obj.content.length > 500 ? "…" : ""));
+            }
+            if (obj.type === "error") {
+              systemLine("错误：" + (obj.message || "unknown"));
+            }
+            if (obj.type === "done") {
+              const last = logEl.querySelector(".msg.assistant.streaming");
+              if (last) last.classList.remove("streaming");
+              systemLine("完成：耗时 " + obj.elapsed_ms + " ms，长度 " + obj.chars);
+            }
+          }
+        }
+      } catch (err) {
+        systemLine(String(err && err.message ? err.message : err));
+      } finally {
+        send.disabled = false;
+      }
+    };
+
+    t.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById("f").requestSubmit();
+      }
+    });
+
+    (async () => {
+      if (sessionId) {
+        sessionLine.textContent = "会话：" + sessionId;
+        try { await loadHistory(); } catch (e) { systemLine(String(e)); }
+      }
+    })();
+  </script>
+</body>
+</html>
