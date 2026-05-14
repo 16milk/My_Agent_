@@ -42,15 +42,15 @@ async def tool_read_file(path_arg: str, settings: Settings) -> str:
             ensure_ascii=False,
         )
     roots = settings.resolved_tool_file_roots()
-    candidate = (roots[0] / path_arg).resolve()
-    if not _is_under_any_root(candidate, roots):
+    candidate: Path | None = None
+    for r in roots:
+        c = (r / path_arg).resolve()
+        if _is_under_any_root(c, roots) and c.is_file():
+            candidate = c
+            break
+    if candidate is None:
         return json.dumps(
-            {"ok": False, "error": "路径不在允许根目录内"},
-            ensure_ascii=False,
-        )
-    if not candidate.is_file():
-        return json.dumps(
-            {"ok": False, "error": "不是文件或不存在", "path": str(candidate)},
+            {"ok": False, "error": "文件不存在或不在允许根目录内", "path": path_arg},
             ensure_ascii=False,
         )
     try:
