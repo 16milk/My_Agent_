@@ -13,6 +13,8 @@ class SessionModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    summary: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    summary_up_to_message_id: Mapped[int | None] = mapped_column(nullable=True)
 
     messages: Mapped[list["MessageModel"]] = relationship(
         back_populates="session",
@@ -35,3 +37,16 @@ class MessageModel(Base):
     )
 
     session: Mapped["SessionModel"] = relationship(back_populates="messages")
+
+
+class MemoryChunkModel(Base):
+    __tablename__ = "memory_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    content: Mapped[str] = mapped_column(Text())
+    embedding_json: Mapped[str] = mapped_column(Text())
+    source: Mapped[str] = mapped_column(String(32), default="chat")
+    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

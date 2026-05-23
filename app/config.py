@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     tool_max_file_bytes: int = 200_000
     agent_max_tool_rounds: int = 8
 
+    # 第三周：会话摘要 + 长期向量记忆
+    openai_embedding_model: str = "text-embedding-3-small"
+    memory_enabled: bool = True
+    memory_session_summary: bool = True
+    memory_long_term: bool = True
+    memory_keep_recent_messages: int = 12
+    memory_summarize_over_messages: int = 24
+    memory_retrieve_top_k: int = 5
+    memory_min_score: float = 0.35
+    memory_index_max_chars: int = 4000
+    memory_search_pool: int = 500
+
     @property
     def database_url(self) -> str:
         path = Path(self.database_path)

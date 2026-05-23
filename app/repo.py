@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -63,4 +63,9 @@ async def delete_session(db: AsyncSession, session_id: str) -> bool:
 async def clear_messages(db: AsyncSession, session_id: str) -> int:
     n = await count_messages(db, session_id)
     await db.execute(delete(MessageModel).where(MessageModel.session_id == session_id))
+    await db.execute(
+        update(SessionModel)
+        .where(SessionModel.id == session_id)
+        .values(summary=None, summary_up_to_message_id=None)
+    )
     return n

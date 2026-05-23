@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-05-14 — 第三周：会话摘要 + 长期向量记忆
+
+### 目标（周计划对照）
+
+- **会话摘要**：消息数超过 `MEMORY_SUMMARIZE_OVER_MESSAGES` 时，将较早轮次合并为 rolling summary，写入 `sessions.summary`；上下文仅保留摘要 + 最近 `MEMORY_KEEP_RECENT_MESSAGES` 条对话。
+- **长期记忆**：每轮问答结束后将「用户 + 助手」写入 `memory_chunks`，用 OpenAI Embedding 向量化；新问题时按余弦相似度检索 Top-K，注入系统提示。
+- **可开关**：请求体 `use_session_summary` / `use_long_term_memory`；总开关 `MEMORY_ENABLED=false` 时二者均关闭。
+- **管理 API**：`GET /api/memory`、`DELETE /api/memory/{id}`；清空会话消息时同时清空本会话摘要字段。
+
+### 已实现内容
+
+| 模块 | 说明 |
+|------|------|
+| `app/models.py` | `sessions.summary`、`summary_up_to_message_id`；表 `memory_chunks` |
+| `app/migrate.py` | SQLite 旧库 `ALTER TABLE` 补列 |
+| `app/memory/embeddings.py` | Embedding API、余弦相似度 |
+| `app/memory/vector.py` | 写入分片、检索、列表、删除 |
+| `app/memory/summary.py` | `maybe_compress_session` 调用模型生成摘要 |
+| `app/memory/context.py` | `prepare_chat_context`、`after_assistant_reply` |
+| `app/main.py` | 对话路径接入记忆；流式事件 `summary_updated`、`memory_retrieved` |
+| `app/schemas.py` | 记忆相关请求字段与 `MemoryItem` |
+| `static/index.html` | 「会话摘要」「长期记忆」勾选框 |
+
+### NDJSON 补充事件
+
+- `summary_updated`：`chars`（摘要长度）。
+- `memory_retrieved`：`items`（`id`、`score`、`content` 预览等）。
+
+### 配置（`.env.example`）
+
+- `OPENAI_EMBEDDING_MODEL`（默认 `text-embedding-3-small`）
+- `MEMORY_*` 系列：开关、保留条数、触发摘要阈值、检索 Top-K、最低相似度等。
+
+### 决策与备注
+
+- **向量存 SQLite JSON**：个人规模够用；检索在内存中对最近 `MEMORY_SEARCH_POOL` 条做相似度排序，避免引入 Chroma 等依赖。
+- **摘要与原文**：旧消息仍留在 `messages` 表便于审计，只是不再送入模型上下文。
+- **长期记忆全局**：不按会话隔离检索，便于跨会话回忆；`session_id` 仅作来源标记。
+
+### 本地验证
+
+1. 多聊若干轮（>24 条消息）后应出现 `summary_updated`。
+2. 关闭再开启「长期记忆」，问「我们之前聊过什么」类问题，应出现 `memory_retrieved`。
+3. `GET /api/memory` 可查看已索引条目。
+
+### 已知限制
+
+- 未做 embedding 缓存或增量索引队列；高并发下 embedding 成本需自行控制。
+- 未实现按目录批量导入个人知识库（可第四周做 `index_folder` 工具或脚本）。
+
+---
+
 ## 2026-05-14 — 第二周：工具调用与安全边界
 
 ### 目标（周计划对照）

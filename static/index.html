@@ -93,7 +93,7 @@
 <body>
   <header>
     <div>
-      <h1>My_Agent_ 本地对话（流式 + 工具）</h1>
+      <h1>My_Agent_ 本地对话（流式 + 工具 + 记忆）</h1>
       <div class="meta" id="sessionLine">会话：未创建</div>
     </div>
     <div class="row">
@@ -108,7 +108,15 @@
       <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;">
         <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
           <input type="checkbox" id="useTools" checked />
-          启用工具（read_file；http_get 需配置 TOOL_HTTP_ALLOWED_HOSTS）
+          启用工具
+        </label>
+        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
+          <input type="checkbox" id="useSummary" checked />
+          会话摘要（长对话自动压缩）
+        </label>
+        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
+          <input type="checkbox" id="useMemory" checked />
+          长期记忆（向量检索）
         </label>
         <button class="primary" type="submit" id="send">发送</button>
       </div>
@@ -204,12 +212,19 @@
         t.value = "";
 
         const useTools = document.getElementById("useTools").checked;
+        const useSummary = document.getElementById("useSummary").checked;
+        const useMemory = document.getElementById("useMemory").checked;
         const resp = await fetch(
           "/api/sessions/" + encodeURIComponent(sid) + "/chat/stream",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text, use_tools: useTools }),
+            body: JSON.stringify({
+              message: text,
+              use_tools: useTools,
+              use_session_summary: useSummary,
+              use_long_term_memory: useMemory,
+            }),
           }
         );
         const reqId = resp.headers.get("x-request-id") || "";
@@ -247,6 +262,13 @@
                 last.textContent = "助手：\n" + assistant;
               }
               logEl.scrollTop = logEl.scrollHeight;
+            }
+            if (obj.type === "summary_updated") {
+              systemLine("会话摘要已更新（约 " + obj.chars + " 字）");
+            }
+            if (obj.type === "memory_retrieved" && obj.items && obj.items.length) {
+              systemLine("检索到 " + obj.items.length + " 条长期记忆（相似度 " +
+                obj.items.map(function (x) { return x.score; }).join(", ") + "）");
             }
             if (obj.type === "tool_call") {
               systemLine("工具调用：" + obj.name + " " + (obj.arguments || ""));
