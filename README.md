@@ -28,6 +28,7 @@ make dev
 
 - 开发记录：`docs/development-log.md`
 - 与主流产品对比：`docs/comparison.md`
+- **向量库原理与选型**：`docs/vector-databases.md`
 
 ## Docker（可选）
 
