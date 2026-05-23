@@ -43,6 +43,40 @@ class Settings(BaseSettings):
     memory_min_score: float = 0.35
     memory_index_max_chars: int = 4000
     memory_search_pool: int = 500
+    memory_index_extensions: str = ".md,.txt,.markdown"
+    memory_index_chunk_chars: int = 1500
+
+    # 第四周：产品化
+    available_models: str = "gpt-4o-mini,gpt-4o,gpt-4.1-mini"
+
+    # 第五周：鉴权与定时任务
+    auth_enabled: bool = False
+    api_keys: str = ""
+    auth_header_name: str = "X-API-Key"
+    scheduler_enabled: bool = True
+    scheduler_timezone: str = "Asia/Shanghai"
+
+    def resolved_env_api_keys(self) -> list[str]:
+        raw = self.api_keys.strip()
+        if not raw:
+            return []
+        return [k.strip() for k in raw.split(",") if k.strip()]
+
+    @property
+    def resolved_available_models(self) -> list[str]:
+        raw = self.available_models.strip()
+        if not raw:
+            return [self.openai_model]
+        models = [m.strip() for m in raw.split(",") if m.strip()]
+        if self.openai_model not in models:
+            models.insert(0, self.openai_model)
+        return models
+
+    def resolved_index_extensions(self) -> set[str]:
+        raw = self.memory_index_extensions.strip()
+        if not raw:
+            return {".md", ".txt"}
+        return {e if e.startswith(".") else f".{e}" for e in raw.split(",") if e.strip()}
 
     @property
     def database_url(self) -> str:

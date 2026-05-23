@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from openai import AsyncOpenAI
 
 from app.config import Settings
+from app.usage import UsageAccumulator
 
 
 def build_client(settings: Settings) -> AsyncOpenAI:
@@ -25,14 +26,18 @@ def build_chat_messages(
 async def stream_chat_completion(
     settings: Settings,
     messages: list[dict],
+    usage: UsageAccumulator | None = None,
 ) -> AsyncIterator[str]:
     client = build_client(settings)
     stream = await client.chat.completions.create(
         model=settings.openai_model,
         messages=messages,
         stream=True,
+        stream_options={"include_usage": True},
     )
     async for chunk in stream:
+        if usage and getattr(chunk, "usage", None):
+            usage.add_chat_usage(chunk.usage)
         choice = chunk.choices[0] if chunk.choices else None
         if choice and choice.delta and choice.delta.content:
             yield choice.delta.content
@@ -41,6 +46,7 @@ async def stream_chat_completion(
 async def complete_chat(
     settings: Settings,
     messages: list[dict],
+    usage: UsageAccumulator | None = None,
 ) -> str:
     client = build_client(settings)
     resp = await client.chat.completions.create(
@@ -48,4 +54,6 @@ async def complete_chat(
         messages=messages,
         stream=False,
     )
+    if usage:
+        usage.add_chat_usage(resp.usage)
     return resp.choices[0].message.content or ""

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My_Agent_ — 本地对话</title>
+  <title>My_Agent_</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -15,125 +15,138 @@
       --border: #2a3140;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-    header .meta { font-size: 12px; color: var(--muted); }
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      max-width: 880px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 12px;
-      gap: 10px;
-    }
-    #log {
-      flex: 1;
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--panel);
-      padding: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    header h1 { font-size: 15px; margin: 0; }
+    .layout { flex: 1; display: flex; min-height: 0; }
+    aside { width: 260px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: #0c0e13; }
+    aside .toolbar { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
+    #sessionList { flex: 1; overflow: auto; padding: 6px; }
+    .sess { width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text); cursor: pointer; font: inherit; font-size: 13px; }
+    .sess:hover { background: #1a1f2a; }
+    .sess.active { border-color: #3d5080; background: #1e2840; }
+    .sess .t { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sess .m { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    main { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 10px; gap: 8px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+    select, input[type=text] { background: #0b0d12; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 8px; font: inherit; }
+    #log { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); padding: 12px; font-size: 14px; line-height: 1.5; min-height: 200px; }
     .msg { margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
     .msg.user { color: #c0caf5; }
     .msg.assistant { color: #bbdfc4; }
     .msg.system { color: var(--muted); font-size: 12px; }
-    form {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
-    textarea {
-      flex: 1;
-      min-height: 72px;
-      resize: vertical;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #0b0d12;
-      color: var(--text);
-      padding: 10px 12px;
-      font: inherit;
-    }
-    button {
-      border: 1px solid var(--border);
-      background: #1f2430;
-      color: var(--text);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font: inherit;
-      cursor: pointer;
-    }
+    form { display: flex; gap: 8px; align-items: flex-end; }
+    textarea { flex: 1; min-height: 72px; resize: vertical; border-radius: 10px; border: 1px solid var(--border); background: #0b0d12; color: var(--text); padding: 10px; font: inherit; }
+    button { border: 1px solid var(--border); background: #1f2430; color: var(--text); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; font-size: 13px; }
     button.primary { border-color: #3d5080; background: #243354; color: #dbe7ff; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    a { color: var(--accent); }
+    .panel { border-top: 1px solid var(--border); padding: 8px; max-height: 140px; overflow: auto; font-size: 12px; }
+    .panel h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+    .mem-row { display: flex; gap: 6px; margin-bottom: 4px; align-items: flex-start; }
+    .mem-row span { flex: 1; color: var(--muted); }
+    @media (max-width: 720px) {
+      aside { width: 100%; max-height: 160px; border-right: none; border-bottom: 1px solid var(--border); }
+      .layout { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>My_Agent_ 本地对话（流式 + 工具 + 记忆）</h1>
-      <div class="meta" id="sessionLine">会话：未创建</div>
-    </div>
-    <div class="row">
-      <button type="button" id="btnNew">新建会话</button>
-      <button type="button" id="btnClear">清空历史</button>
+    <h1>My_Agent_ 个人助手</h1>
+    <div class="controls">
+      <label>API Key <input type="password" id="apiKeyInput" placeholder="鉴权开启时必填" style="width:160px;" /></label>
+      <button type="button" id="btnSaveKey">保存 Key</button>
+      <span id="usageLine">用量：加载中…</span>
     </div>
   </header>
-  <main>
-    <div id="log"></div>
-    <form id="f">
-      <textarea id="t" placeholder="输入消息，Enter 发送（Shift+Enter 换行）"></textarea>
-      <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;">
-        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
-          <input type="checkbox" id="useTools" checked />
-          启用工具
-        </label>
-        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
-          <input type="checkbox" id="useSummary" checked />
-          会话摘要（长对话自动压缩）
-        </label>
-        <label class="meta" style="display:flex;gap:8px;align-items:center;user-select:none;">
-          <input type="checkbox" id="useMemory" checked />
-          长期记忆（向量检索）
-        </label>
-        <button class="primary" type="submit" id="send">发送</button>
+  <div class="layout">
+    <aside>
+      <div class="toolbar">
+        <button type="button" id="btnNew">新建</button>
+        <button type="button" id="btnClear">清空</button>
+        <button type="button" id="btnDel">删除</button>
       </div>
-    </form>
-    <div class="meta row">
-      <span>API：<code>/api/sessions/…/chat/stream</code>（NDJSON）</span>
-      <span id="rid"></span>
-    </div>
-  </main>
+      <div id="sessionList"></div>
+      <div class="panel">
+        <h3>定时任务</h3>
+        <div class="controls" style="margin-bottom:6px;flex-direction:column;align-items:stretch;">
+          <input type="text" id="taskName" placeholder="任务名" style="width:100%;" />
+          <select id="taskType" style="width:100%;margin-top:4px;"></select>
+          <input type="text" id="taskCron" placeholder="0 8 * * *" value="0 8 * * *" style="width:100%;margin-top:4px;" />
+          <input type="text" id="taskPayload" placeholder='{"path":"docs"}' style="width:100%;margin-top:4px;" />
+          <button type="button" id="btnAddTask" style="margin-top:4px;">添加任务</button>
+        </div>
+        <div id="taskList"></div>
+      </div>
+      <div class="panel">
+        <h3>长期记忆</h3>
+        <div class="controls" style="margin-bottom:6px;">
+          <input type="text" id="indexPath" placeholder="docs" style="width:80px;" />
+          <button type="button" id="btnIndex">索引目录</button>
+          <button type="button" id="btnMemRefresh">刷新</button>
+        </div>
+        <div id="memList"></div>
+      </div>
+    </aside>
+    <main>
+      <div class="controls">
+        <label>模型 <select id="modelSelect"></select></label>
+        <label>人格 <select id="personaSelect"></select></label>
+        <label><input type="checkbox" id="useTools" checked /> 工具</label>
+        <label><input type="checkbox" id="useSummary" checked /> 摘要</label>
+        <label><input type="checkbox" id="useMemory" checked /> 记忆</label>
+        <span id="rid"></span>
+      </div>
+      <div id="log"></div>
+      <form id="f">
+        <textarea id="t" placeholder="输入消息，Enter 发送"></textarea>
+        <button class="primary" type="submit" id="send">发送</button>
+      </form>
+    </main>
+  </div>
   <script>
     const logEl = document.getElementById("log");
-    const sessionLine = document.getElementById("sessionLine");
+    const sessionListEl = document.getElementById("sessionList");
+    const memListEl = document.getElementById("memList");
     const ridEl = document.getElementById("rid");
+    const usageLine = document.getElementById("usageLine");
     const t = document.getElementById("t");
     const send = document.getElementById("send");
+    const modelSelect = document.getElementById("modelSelect");
+    const personaSelect = document.getElementById("personaSelect");
 
     let sessionId = localStorage.getItem("my_agent_session_id") || "";
+    let appConfig = null;
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    apiKeyInput.value = localStorage.getItem("my_agent_api_key") || "";
+
+    function authHeaders() {
+      const h = { "Content-Type": "application/json" };
+      const k = localStorage.getItem("my_agent_api_key");
+      if (k) {
+        const name = (appConfig && appConfig.auth_header_name) || "X-API-Key";
+        h[name] = k;
+      }
+      return h;
+    }
+
+    async function apiFetch(url, opts) {
+      opts = opts || {};
+      const headers = Object.assign({}, authHeaders(), opts.headers || {});
+      if (opts.body && !(opts.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
+      const r = await fetch(url, Object.assign({}, opts, { headers: headers }));
+      if (r.status === 401) {
+        systemLine("鉴权失败：请在顶部填写并保存 API Key（.env 中 API_KEYS）");
+      }
+      return r;
+    }
+
+    document.getElementById("btnSaveKey").onclick = function () {
+      localStorage.setItem("my_agent_api_key", apiKeyInput.value.trim());
+      systemLine("API Key 已保存到浏览器本地。");
+    };
 
     function append(role, text) {
       const p = document.createElement("p");
@@ -142,7 +155,6 @@
       logEl.appendChild(p);
       logEl.scrollTop = logEl.scrollHeight;
     }
-
     function systemLine(text) {
       const p = document.createElement("p");
       p.className = "msg system";
@@ -151,94 +163,242 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
 
+    async function loadConfig() {
+      const r = await fetch("/api/config");
+      if (!r.ok) throw new Error("config failed");
+      appConfig = await r.json();
+      modelSelect.innerHTML = "";
+      appConfig.available_models.forEach(function (m) {
+        const o = document.createElement("option");
+        o.value = m;
+        o.textContent = m;
+        if (m === appConfig.default_model) o.selected = true;
+        modelSelect.appendChild(o);
+      });
+      personaSelect.innerHTML = "";
+      appConfig.personas.forEach(function (p) {
+        const o = document.createElement("option");
+        o.value = p.id;
+        o.textContent = p.name;
+        personaSelect.appendChild(o);
+      });
+      const taskType = document.getElementById("taskType");
+      taskType.innerHTML = "";
+      (appConfig.task_types || []).forEach(function (tt) {
+        const o = document.createElement("option");
+        o.value = tt;
+        o.textContent = tt;
+        taskType.appendChild(o);
+      });
+      if (appConfig.auth_required && !localStorage.getItem("my_agent_api_key")) {
+        systemLine("服务端已开启鉴权，请配置 API Key。");
+      }
+    }
+
+    async function loadTasks() {
+      const el = document.getElementById("taskList");
+      const r = await apiFetch("/api/tasks");
+      if (!r.ok) return;
+      const items = await r.json();
+      el.innerHTML = "";
+      items.forEach(function (t) {
+        const row = document.createElement("div");
+        row.className = "mem-row";
+        const span = document.createElement("span");
+        span.textContent = "#" + t.id + " " + t.name + " [" + t.task_type + "] " + t.cron +
+          (t.last_status ? " · " + t.last_status : "");
+        const run = document.createElement("button");
+        run.textContent = "跑";
+        run.onclick = async function () {
+          const rr = await apiFetch("/api/tasks/" + t.id + "/run", { method: "POST" });
+          const j = await rr.json().catch(function () { return {}; });
+          systemLine(rr.ok ? "任务已执行" : (j.detail || "失败"));
+          loadTasks();
+        };
+        const del = document.createElement("button");
+        del.textContent = "删";
+        del.onclick = async function () {
+          await apiFetch("/api/tasks/" + t.id, { method: "DELETE" });
+          loadTasks();
+        };
+        row.appendChild(span);
+        row.appendChild(run);
+        row.appendChild(del);
+        el.appendChild(row);
+      });
+    }
+
+    document.getElementById("btnAddTask").onclick = async function () {
+      let payload = {};
+      try {
+        payload = JSON.parse(document.getElementById("taskPayload").value.trim() || "{}");
+      } catch (e) {
+        return alert("payload 须为 JSON");
+      }
+      const body = {
+        name: document.getElementById("taskName").value.trim() || "未命名",
+        task_type: document.getElementById("taskType").value,
+        cron: document.getElementById("taskCron").value.trim(),
+        payload: payload,
+        enabled: true,
+      };
+      const r = await apiFetch("/api/tasks", { method: "POST", body: JSON.stringify(body) });
+      if (!r.ok) {
+        const j = await r.json().catch(function () { return {}; });
+        return alert(j.detail || "创建失败");
+      }
+      systemLine("定时任务已创建");
+      loadTasks();
+    };
+
+    async function loadUsage() {
+      try {
+        const r = await apiFetch("/api/usage/stats");
+        if (!r.ok) return;
+        const u = await r.json();
+        usageLine.textContent = "近期约 " + u.requests + " 次请求 · token " +
+          (u.prompt_tokens + u.completion_tokens) + " · 估算 $" + u.estimated_usd;
+      } catch (e) { usageLine.textContent = ""; }
+    }
+
+    async function loadSessions() {
+      const r = await apiFetch("/api/sessions?limit=50");
+      if (!r.ok) return;
+      const items = await r.json();
+      sessionListEl.innerHTML = "";
+      items.forEach(function (s) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "sess" + (s.id === sessionId ? " active" : "");
+        b.innerHTML = "<div class=\"t\">" + (s.title || "新对话") + "</div><div class=\"m\">" +
+          s.message_count + " 条 · " + new Date(s.updated_at).toLocaleString() + "</div>";
+        b.onclick = function () { switchSession(s.id); };
+        sessionListEl.appendChild(b);
+      });
+    }
+
     function setSession(id) {
       sessionId = id;
       localStorage.setItem("my_agent_session_id", id);
-      sessionLine.textContent = "会话：" + id;
+      loadSessions();
     }
 
-    async function ensureSession() {
-      if (sessionId) return sessionId;
-      const r = await fetch("/api/sessions", { method: "POST" });
-      if (!r.ok) throw new Error("创建会话失败：" + r.status);
-      const j = await r.json();
-      setSession(j.id);
-      systemLine("已创建新会话。");
-      return sessionId;
+    async function switchSession(id) {
+      setSession(id);
+      await loadHistory();
     }
 
     async function loadHistory() {
-      if (!sessionId) return;
-      const r = await fetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages");
-      if (r.status === 404) {
-        setSession("");
-        systemLine("本地会话 id 无效，请新建会话。");
-        return;
+      if (!sessionId) { logEl.innerHTML = ""; return; }
+      const r = await apiFetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages");
+      if (r.status === 404) { setSession(""); systemLine("会话无效"); return; }
+      if (!r.ok) throw new Error("加载历史失败");
+      const info = await apiFetch("/api/sessions/" + encodeURIComponent(sessionId));
+      if (info.ok) {
+        const s = await info.json();
+        if (s.persona_id) personaSelect.value = s.persona_id;
       }
-      if (!r.ok) throw new Error("加载历史失败：" + r.status);
       const items = await r.json();
       logEl.innerHTML = "";
-      for (const m of items) {
+      items.forEach(function (m) {
         if (m.role === "user") append("user", m.content);
         if (m.role === "assistant") append("assistant", m.content);
-      }
+      });
     }
 
-    document.getElementById("btnNew").onclick = async () => {
-      const r = await fetch("/api/sessions", { method: "POST" });
-      if (!r.ok) return alert("创建会话失败");
+    async function loadMemories() {
+      const r = await apiFetch("/api/memory?limit=8");
+      if (!r.ok) return;
+      const items = await r.json();
+      memListEl.innerHTML = "";
+      items.forEach(function (m) {
+        const row = document.createElement("div");
+        row.className = "mem-row";
+        const span = document.createElement("span");
+        span.textContent = "[" + m.source + "] " + m.content.slice(0, 60) + (m.content.length > 60 ? "…" : "");
+        const del = document.createElement("button");
+        del.textContent = "删";
+        del.onclick = async function () {
+          await apiFetch("/api/memory/" + m.id, { method: "DELETE" });
+          loadMemories();
+        };
+        row.appendChild(span);
+        row.appendChild(del);
+        memListEl.appendChild(row);
+      });
+    }
+
+    document.getElementById("btnNew").onclick = async function () {
+      const r = await apiFetch("/api/sessions", {
+        method: "POST",
+        body: JSON.stringify({ persona_id: personaSelect.value || null }),
+      });
+      if (!r.ok) return alert("创建失败");
       const j = await r.json();
       setSession(j.id);
       logEl.innerHTML = "";
       systemLine("已创建新会话。");
     };
 
-    document.getElementById("btnClear").onclick = async () => {
-      if (!sessionId) return alert("没有会话");
-      const r = await fetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages", { method: "DELETE" });
-      if (!r.ok && r.status !== 204) return alert("清空失败");
+    document.getElementById("btnClear").onclick = async function () {
+      if (!sessionId) return;
+      await apiFetch("/api/sessions/" + encodeURIComponent(sessionId) + "/messages", { method: "DELETE" });
       logEl.innerHTML = "";
-      systemLine("已清空本会话消息（系统提示仍会在服务端默认注入）。");
+      systemLine("已清空消息与摘要。");
+      loadSessions();
     };
 
-    document.getElementById("f").onsubmit = async (e) => {
+    document.getElementById("btnDel").onclick = async function () {
+      if (!sessionId || !confirm("删除此会话？")) return;
+      await apiFetch("/api/sessions/" + encodeURIComponent(sessionId), { method: "DELETE" });
+      setSession("");
+      logEl.innerHTML = "";
+      loadSessions();
+    };
+
+    document.getElementById("btnIndex").onclick = async function () {
+      const path = document.getElementById("indexPath").value.trim() || "docs";
+      const r = await apiFetch("/api/memory/index-folder", {
+        method: "POST",
+        body: JSON.stringify({ path: path, recursive: true }),
+      });
+      const j = await r.json().catch(function () { return {}; });
+      if (!r.ok) return alert(j.detail || "索引失败");
+      systemLine("已索引 " + j.indexed + " 片段（" + j.files + " 个文件）");
+      loadMemories();
+    };
+
+    document.getElementById("btnMemRefresh").onclick = loadMemories;
+
+    document.getElementById("f").onsubmit = async function (e) {
       e.preventDefault();
       const text = t.value.trim();
       if (!text) return;
       send.disabled = true;
       try {
-        const sid = await ensureSession();
+        if (!sessionId) {
+          const cr = await apiFetch("/api/sessions", { method: "POST", body: "{}" });
+          const cj = await cr.json();
+          setSession(cj.id);
+        }
         append("user", text);
         t.value = "";
-
-        const useTools = document.getElementById("useTools").checked;
-        const useSummary = document.getElementById("useSummary").checked;
-        const useMemory = document.getElementById("useMemory").checked;
-        const resp = await fetch(
-          "/api/sessions/" + encodeURIComponent(sid) + "/chat/stream",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: text,
-              use_tools: useTools,
-              use_session_summary: useSummary,
-              use_long_term_memory: useMemory,
-            }),
-          }
-        );
-        const reqId = resp.headers.get("x-request-id") || "";
-        ridEl.textContent = reqId ? ("Request-ID: " + reqId) : "";
-
-        if (!resp.ok || !resp.body) {
-          const errText = await resp.text();
-          throw new Error(errText || ("HTTP " + resp.status));
-        }
-
+        const resp = await apiFetch("/api/sessions/" + encodeURIComponent(sessionId) + "/chat/stream", {
+          method: "POST",
+          body: JSON.stringify({
+            message: text,
+            use_tools: document.getElementById("useTools").checked,
+            use_session_summary: document.getElementById("useSummary").checked,
+            use_long_term_memory: document.getElementById("useMemory").checked,
+            model: modelSelect.value,
+            persona_id: personaSelect.value,
+          }),
+        });
+        ridEl.textContent = resp.headers.get("x-request-id") || "";
+        if (!resp.ok || !resp.body) throw new Error(await resp.text() || resp.status);
         const reader = resp.body.getReader();
         const dec = new TextDecoder();
-        let buf = "";
-        let assistant = "";
+        let buf = "", assistant = "";
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -252,60 +412,56 @@
             try { obj = JSON.parse(line); } catch { continue; }
             if (obj.type === "delta" && obj.text) {
               assistant += obj.text;
-              const last = logEl.querySelector(".msg.assistant.streaming");
+              let last = logEl.querySelector(".msg.assistant.streaming");
               if (!last) {
-                const p = document.createElement("p");
-                p.className = "msg assistant streaming";
-                p.textContent = "助手：\n" + assistant;
-                logEl.appendChild(p);
-              } else {
-                last.textContent = "助手：\n" + assistant;
+                last = document.createElement("p");
+                last.className = "msg assistant streaming";
+                logEl.appendChild(last);
               }
+              last.textContent = "助手：\n" + assistant;
               logEl.scrollTop = logEl.scrollHeight;
             }
-            if (obj.type === "summary_updated") {
-              systemLine("会话摘要已更新（约 " + obj.chars + " 字）");
-            }
-            if (obj.type === "memory_retrieved" && obj.items && obj.items.length) {
-              systemLine("检索到 " + obj.items.length + " 条长期记忆（相似度 " +
-                obj.items.map(function (x) { return x.score; }).join(", ") + "）");
-            }
-            if (obj.type === "tool_call") {
-              systemLine("工具调用：" + obj.name + " " + (obj.arguments || ""));
-            }
-            if (obj.type === "tool_result") {
-              const preview = (obj.content || "").slice(0, 500);
-              systemLine("工具结果：" + obj.name + " → " + preview + (obj.content && obj.content.length > 500 ? "…" : ""));
-            }
-            if (obj.type === "error") {
-              systemLine("错误：" + (obj.message || "unknown"));
-            }
+            if (obj.type === "summary_updated") systemLine("会话摘要已更新（" + obj.chars + " 字）");
+            if (obj.type === "memory_retrieved" && obj.items && obj.items.length)
+              systemLine("检索记忆 " + obj.items.length + " 条");
+            if (obj.type === "tool_call") systemLine("工具：" + obj.name);
+            if (obj.type === "tool_result") systemLine("工具结果：" + obj.name);
+            if (obj.type === "error") systemLine("错误：" + obj.message);
             if (obj.type === "done") {
               const last = logEl.querySelector(".msg.assistant.streaming");
               if (last) last.classList.remove("streaming");
-              systemLine("完成：耗时 " + obj.elapsed_ms + " ms，长度 " + obj.chars);
+              let extra = "耗时 " + obj.elapsed_ms + " ms";
+              if (obj.usage) {
+                extra += " · token " + obj.usage.total_tokens;
+                extra += " · 约 $" + obj.usage.estimated_usd;
+                if (obj.usage.ttft_ms != null) extra += " · 首字 " + obj.usage.ttft_ms + " ms";
+              }
+              systemLine("完成：" + extra);
+              loadSessions();
+              loadUsage();
             }
           }
         }
       } catch (err) {
-        systemLine(String(err && err.message ? err.message : err));
+        systemLine(String(err.message || err));
       } finally {
         send.disabled = false;
       }
     };
 
-    t.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        document.getElementById("f").requestSubmit();
-      }
+    t.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("f").requestSubmit(); }
     });
 
-    (async () => {
-      if (sessionId) {
-        sessionLine.textContent = "会话：" + sessionId;
-        try { await loadHistory(); } catch (e) { systemLine(String(e)); }
-      }
+    (async function init() {
+      try {
+        await loadConfig();
+        await loadUsage();
+        await loadSessions();
+        await loadMemories();
+        await loadTasks();
+        if (sessionId) await loadHistory();
+      } catch (e) { systemLine(String(e)); }
     })();
   </script>
 </body>

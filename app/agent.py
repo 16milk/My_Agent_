@@ -6,6 +6,7 @@ from app.config import Settings
 from app.llm import build_client, complete_chat, stream_chat_completion
 from app.tools_exec import dispatch_tool
 from app.tools_schema import openai_tools_for_settings
+from app.usage import UsageAccumulator
 
 logger = logging.getLogger("my_agent")
 
@@ -31,28 +32,35 @@ async def _stream_final_answer(
     settings: Settings,
     messages: list[dict],
     tools: list[dict],
+    usage: UsageAccumulator | None,
 ) -> AsyncIterator[str]:
     client = build_client(settings)
     kwargs: dict = {
         "model": settings.openai_model,
         "messages": messages,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
     if tools:
         kwargs["tools"] = tools
         kwargs["tool_choice"] = "none"
     stream = await client.chat.completions.create(**kwargs)
     async for chunk in stream:
+        if usage and getattr(chunk, "usage", None):
+            usage.add_chat_usage(chunk.usage)
         choice = chunk.choices[0] if chunk.choices else None
         if choice and choice.delta and choice.delta.content:
             yield choice.delta.content
 
 
 async def complete_with_tools(
-    settings: Settings, messages: list[dict], tools: list[dict]
+    settings: Settings,
+    messages: list[dict],
+    tools: list[dict],
+    usage: UsageAccumulator | None = None,
 ) -> str:
     if not tools:
-        return await complete_chat(settings, messages)
+        return await complete_chat(settings, messages, usage)
     client = build_client(settings)
     rounds = 0
     while rounds < settings.agent_max_tool_rounds:
@@ -64,6 +72,8 @@ async def complete_with_tools(
             tool_choice="auto",
             stream=False,
         )
+        if usage:
+            usage.add_chat_usage(resp.usage)
         msg = resp.choices[0].message
         if msg.tool_calls:
             messages.append(assistant_message_dict(msg))
@@ -85,10 +95,13 @@ async def complete_with_tools(
 
 
 async def stream_with_tools(
-    settings: Settings, messages: list[dict], tools: list[dict]
+    settings: Settings,
+    messages: list[dict],
+    tools: list[dict],
+    usage: UsageAccumulator | None = None,
 ) -> AsyncIterator[dict]:
     if not tools:
-        async for delta in stream_chat_completion(settings, messages):
+        async for delta in stream_chat_completion(settings, messages, usage):
             yield {"type": "delta", "text": delta}
         return
 
@@ -103,6 +116,8 @@ async def stream_with_tools(
             tool_choice="auto",
             stream=False,
         )
+        if usage:
+            usage.add_chat_usage(resp.usage)
         msg = resp.choices[0].message
         if msg.tool_calls:
             messages.append(assistant_message_dict(msg))
@@ -138,7 +153,7 @@ async def stream_with_tools(
                 yield {"type": "delta", "text": text[i : i + step]}
             return
 
-        async for delta in _stream_final_answer(settings, messages, tools):
+        async for delta in _stream_final_answer(settings, messages, tools, usage):
             yield {"type": "delta", "text": delta}
         return
 

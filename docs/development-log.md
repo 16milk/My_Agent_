@@ -4,6 +4,93 @@
 
 ---
 
+## 2026-05-23 — 第五周：鉴权 / API Key 与定时任务
+
+### 目标（周计划对照）
+
+- **API Key 鉴权**：`AUTH_ENABLED=true` 时校验 `X-API-Key` 或 `Authorization: Bearer`；公开路径仅 `/`、`/health`、`/api/config`。
+- **密钥管理**：环境变量 `API_KEYS` + 数据库表 `api_keys`（SHA-256 存储，创建时仅返回一次明文）。
+- **定时任务**：`scheduled_tasks` + `task_runs`；APScheduler + cron 五段式；支持手动触发。
+- **任务类型**：`index_folder`、`agent_prompt`、`summarize_sessions`。
+
+### 已实现内容
+
+| 模块 | 说明 |
+|------|------|
+| `app/auth.py` | 鉴权中间件、密钥生成与哈希 |
+| `app/repo_auth.py` | API Key CRUD |
+| `app/repo_tasks.py` | 定时任务与运行记录 |
+| `app/tasks/scheduler.py` | 启动时加载 cron，变更后 `reload` |
+| `app/tasks/executor.py` | 三类任务执行逻辑 |
+| `app/main.py` | `/api/keys*`、`/api/tasks*` |
+| `static/index.html` | API Key 输入、定时任务面板 |
+| `requirements.txt` | `apscheduler`、`croniter` |
+
+### API 摘要
+
+- `GET/POST /api/keys`，`DELETE /api/keys/{id}`，`PATCH /api/keys/{id}/enable?enabled=`
+- `GET/POST /api/tasks`，`PATCH/DELETE /api/tasks/{id}`，`POST /api/tasks/{id}/run`，`GET /api/tasks/{id}/runs`
+
+### 配置示例
+
+```env
+AUTH_ENABLED=true
+API_KEYS=ma_your_bootstrap_key_here
+SCHEDULER_ENABLED=true
+SCHEDULER_TIMEZONE=Asia/Shanghai
+```
+
+### 本地验证
+
+1. 开启鉴权后，无 Key 调用 `/api/sessions` 应 401；带 Key 正常。
+2. `POST /api/tasks` 创建 `0 8 * * *` 的 `index_folder` 任务，手动 `POST .../run` 应写入 `task_runs`。
+3. 前端保存 Key 后可正常聊天。
+
+### 已知限制
+
+- 定时任务在单进程内调度，多实例部署需外部分布式调度。
+- `agent_prompt` 定时任务默认关闭工具调用，避免无人值守时误操作文件/网络。
+
+---
+
+## 2026-05-14 — 第四周：产品化与体验
+
+### 目标（周计划对照）
+
+- **多会话工作台**：列表、标题、切换、删除；首条用户消息自动生成标题。
+- **模型 / 人格**：前端下拉；`ChatRequest.model` / `persona_id`；人格定义 `data/personas.json`。
+- **用量透明**：`usage_logs` 表；流式 `done.usage`（token、估算 USD、TTFT）；`GET /api/usage/stats`。
+- **知识库入库**：`POST /api/memory/index-folder` 批量索引允许目录下的 `.md/.txt`。
+- **记忆管理 UI**：侧栏查看 / 删除记忆条目。
+- **交付**：`Makefile`、`README.md`、`Dockerfile`、`docs/comparison.md`。
+
+### 已实现内容
+
+| 模块 | 说明 |
+|------|------|
+| `app/models.py` | `sessions.title/updated_at/persona_id`；`usage_logs` |
+| `app/personas.py` | 加载人格模板 |
+| `app/usage.py` | `UsageAccumulator`、费用粗算 |
+| `app/request_settings.py` | 按请求覆盖模型与 system prompt |
+| `app/memory/indexer.py` | 目录切片 + embedding 入库 |
+| `app/main.py` | `/api/config`、`/api/sessions` 列表、`PATCH` 标题、`/api/usage/stats` |
+| `static/index.html` | 侧栏会话、模型/人格、记忆面板、用量展示 |
+| `Makefile` / `README.md` / `Dockerfile` | 一键开发与容器 |
+
+### 本地验证
+
+1. `make dev` 后侧边栏应出现会话列表，可新建/切换。
+2. 切换模型或「编程搭档」人格后提问，行为应有差异。
+3. `docs` 目录点「索引目录」，再问文档相关问题，应 `memory_retrieved`。
+4. 发送消息后完成行应显示 token 与估算 `$`。
+
+### 已知限制
+
+- 费用为静态单价表粗算，非账单级精度。
+- 会话列表暂不支持服务端分页搜索。
+
+---
+
 ## 2026-05-14 — 第三周：会话摘要 + 长期向量记忆
 
 ### 目标（周计划对照）

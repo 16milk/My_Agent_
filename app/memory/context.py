@@ -7,6 +7,7 @@ from app.llm import build_chat_messages
 from app.models import SessionModel
 from app import repo
 from app.memory.summary import maybe_compress_session
+from app.usage import UsageAccumulator
 from app.memory.vector import add_memory_chunk, search_memories
 
 
@@ -45,6 +46,7 @@ async def prepare_chat_context(
     *,
     use_session_summary: bool,
     use_long_term_memory: bool,
+    usage: UsageAccumulator | None = None,
 ) -> tuple[list[dict], dict]:
     meta: dict = {
         "summary_updated": False,
@@ -62,7 +64,9 @@ async def prepare_chat_context(
 
     memory_items: list[dict] = []
     if use_long_term_memory and settings.memory_long_term:
-        memory_items = await search_memories(db, settings, user_message)
+        memory_items = await search_memories(
+            db, settings, user_message, usage=usage
+        )
         meta["memories"] = memory_items
 
     up_to = session.summary_up_to_message_id or 0

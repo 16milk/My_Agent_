@@ -13,6 +13,7 @@ from app.memory.embeddings import (
     embedding_from_json,
     embedding_to_json,
 )
+from app.usage import UsageAccumulator, estimate_tokens_from_text
 from app.models import MemoryChunkModel
 
 logger = logging.getLogger("my_agent")
@@ -52,6 +53,7 @@ async def search_memories(
     db: AsyncSession,
     settings: Settings,
     query: str,
+    usage: UsageAccumulator | None = None,
 ) -> list[dict]:
     if not settings.memory_long_term:
         return []
@@ -60,6 +62,8 @@ async def search_memories(
         return []
     try:
         q_vec = await embed_text(settings, q)
+        if usage:
+            usage.add_embedding_tokens(estimate_tokens_from_text(q))
     except Exception:
         logger.exception("query embedding failed")
         return []
