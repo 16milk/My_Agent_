@@ -293,4 +293,17 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ---
 
+## 项目文件说明（2026-05-24）
+
+- 新增 [`project-files.md`](./project-files.md)：按目录列出每个源码/文档文件的职责、API 路由索引、模块依赖简图与「想改什么找哪个文件」对照表。
+- 补充 **§10 典型一次对话的代码调用链**（流式 NDJSON 全路径、分阶段调用栈、工具分支、与非流式差异）。
+- 补充 **§10.7～10.14** 会话相关调用链（新建 / 切换 / 拉历史 / 清空 / 删除 / 生命周期总览）。
+
+## 性能分析文档（2026-05-24）
+
+- 新增 [`performance-analysis.md`](./performance-analysis.md)：梳理单次流式对话关键路径、P0～P3 瓶颈（LLM/Embedding、TTFT 前同步准备、工具非流式、Lance 全表 IO、SQLite N+1 等）及分阶段优化建议。
+- `README.md`、`vector-databases.md` 延伸阅读已链入该文档。
+
+---
+
 （后续每次开发完成后，在上方追加新章节，或按周拆分 `docs/week-XX.md` 并在本文件建立索引。）

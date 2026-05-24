@@ -310,6 +310,8 @@ A：可以。会话仍 SQLite；向量表 LanceDB；通过 id 逻辑关联即可
 - [OpenAI Embeddings 指南](https://platform.openai.com/docs/guides/embeddings)
 - 本项目实现：`app/memory/vector.py`、`app/memory/embeddings.py`  
 - 开发记录：`docs/development-log.md`（第三周 长期记忆）
+- 性能瓶颈分析：`docs/performance-analysis.md`
+- 项目文件说明：`docs/project-files.md`
 
 ---
 
