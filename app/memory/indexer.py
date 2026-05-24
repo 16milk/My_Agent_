@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.memory.embeddings import embed_text, embedding_to_json
 from app.memory.vector import add_memory_chunk
-from app.models import MemoryChunkModel
 
 logger = logging.getLogger("my_agent")
 
@@ -80,22 +79,19 @@ async def index_folder(
             content = header + piece
             if len(content) > settings.memory_index_max_chars:
                 content = content[: settings.memory_index_max_chars] + "…"
-            try:
-                vec = await embed_text(settings, content)
-            except Exception:
-                logger.exception("embed failed for %s", rel)
+            row = await add_memory_chunk(
+                db, settings, content, session_id=None, source="folder"
+            )
+            if row is None:
                 skipped += 1
                 break
-            row = MemoryChunkModel(
-                content=content,
-                embedding_json=embedding_to_json(vec),
-                source="folder",
-                session_id=None,
-            )
-            db.add(row)
             indexed += 1
 
-    await db.flush()
+    if settings.memory_backend.strip().lower() == "lance":
+        from app.memory.lance_store import maybe_build_index_sync
+
+        await asyncio.to_thread(maybe_build_index_sync, settings)
+
     return {
         "ok": True,
         "indexed": indexed,

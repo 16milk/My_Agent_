@@ -14,7 +14,7 @@ from app.memory.vector import add_memory_chunk, search_memories
 def _format_memory_block(items: list[dict]) -> str:
     if not items:
         return ""
-    lines = ["## 相关长期记忆（向量检索，供参考）"]
+    lines = ["## 相关长期记忆（LanceDB 向量检索，供参考）"]
     for i, it in enumerate(items, 1):
         preview = it["content"].replace("\n", " ")
         if len(preview) > 280:

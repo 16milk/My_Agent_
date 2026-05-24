@@ -248,9 +248,31 @@ Qdrant / Milvus + 专用检索服务
 
 ---
 
-## 6. 迁移到 LanceDB 时会发生什么？（预告）
+## 6. My_Agent_ 已接入 LanceDB（2026-05-24）
+
+当前默认配置：
+
+```env
+MEMORY_BACKEND=lance
+LANCE_DB_PATH=data/lance
+```
+
+| 层 | 职责 |
+|----|------|
+| SQLite | 会话、消息、用量、API Key、定时任务 |
+| LanceDB | 长期记忆向量 + 元数据（content / source / session_id） |
+
+实现入口：`app/memory/lance_store.py`；对外 API 不变（`/api/memory` 等）。
+
+回退旧行为：`.env` 设 `MEMORY_BACKEND=sqlite`。
+
+---
+
+## 7. 迁移到 LanceDB 时会发生什么？（历史说明，已完成）
 
 若 My_Agent_ 后续接入 LanceDB，典型改动是：
+
+**（已完成，见第 6 节。）** 曾规划步骤：
 
 1. **存储**：`embedding_json` → Lance 表列（固定 dim float 数组）。
 2. **检索**：`search_memories()` 内 `SELECT ... ORDER BY vector LIMIT k` 改为 `table.search(q_vec).limit(k).where("source = ...")`。

@@ -13,10 +13,15 @@ from app.memory.embeddings import (
     embedding_from_json,
     embedding_to_json,
 )
+from app.memory.types import MemoryChunkView
 from app.usage import UsageAccumulator, estimate_tokens_from_text
 from app.models import MemoryChunkModel
 
 logger = logging.getLogger("my_agent")
+
+
+def uses_lance(settings: Settings) -> bool:
+    return settings.memory_backend.strip().lower() == "lance"
 
 
 async def add_memory_chunk(
@@ -26,7 +31,7 @@ async def add_memory_chunk(
     *,
     session_id: str | None = None,
     source: str = "chat",
-) -> MemoryChunkModel | None:
+) -> MemoryChunkView | None:
     text = content.strip()
     if not text or not settings.memory_long_term:
         return None
@@ -37,6 +42,18 @@ async def add_memory_chunk(
     except Exception:
         logger.exception("embedding failed, skip memory index")
         return None
+
+    if uses_lance(settings):
+        from app.memory import lance_store
+
+        return await lance_store.add_chunk(
+            settings,
+            content=text,
+            vector=vec,
+            source=source,
+            session_id=session_id,
+        )
+
     row = MemoryChunkModel(
         content=text,
         embedding_json=embedding_to_json(vec),
@@ -46,7 +63,13 @@ async def add_memory_chunk(
     db.add(row)
     await db.flush()
     await db.refresh(row)
-    return row
+    return MemoryChunkView(
+        id=row.id,
+        content=row.content,
+        source=row.source,
+        session_id=row.session_id,
+        created_at=row.created_at,
+    )
 
 
 async def search_memories(
@@ -67,6 +90,11 @@ async def search_memories(
     except Exception:
         logger.exception("query embedding failed")
         return []
+
+    if uses_lance(settings):
+        from app.memory import lance_store
+
+        return await lance_store.search(settings, q_vec)
 
     stmt = (
         select(MemoryChunkModel)
@@ -98,17 +126,39 @@ async def search_memories(
 
 
 async def list_memory_chunks(
-    db: AsyncSession, limit: int = 20
-) -> list[MemoryChunkModel]:
+    db: AsyncSession, settings: Settings, limit: int = 20
+) -> list[MemoryChunkView]:
+    if uses_lance(settings):
+        from app.memory import lance_store
+
+        return await lance_store.list_chunks(settings, limit=limit)
+
     stmt = (
         select(MemoryChunkModel)
         .order_by(MemoryChunkModel.id.desc())
         .limit(limit)
     )
-    return list((await db.execute(stmt)).scalars().all())
+    rows = list((await db.execute(stmt)).scalars().all())
+    return [
+        MemoryChunkView(
+            id=r.id,
+            content=r.content,
+            source=r.source,
+            session_id=r.session_id,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
 
 
-async def delete_memory_chunk(db: AsyncSession, chunk_id: int) -> bool:
+async def delete_memory_chunk(
+    db: AsyncSession, settings: Settings, chunk_id: int
+) -> bool:
+    if uses_lance(settings):
+        from app.memory import lance_store
+
+        return await lance_store.delete_chunk(settings, chunk_id)
+
     result = await db.execute(
         delete(MemoryChunkModel).where(MemoryChunkModel.id == chunk_id)
     )

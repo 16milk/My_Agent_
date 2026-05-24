@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-05-24 — LanceDB 接入：长期记忆向量后端
+
+### 目标
+
+- 默认 `MEMORY_BACKEND=lance`，向量存于 `data/lance/`。
+- 检索改用 LanceDB **cosine ANN**（小数据量无索引时仍可用；≥256 条可建索引）。
+- 启动时若 Lance 为空且 SQLite `memory_chunks` 有数据，**自动一次性迁移**。
+- 保留 `MEMORY_BACKEND=sqlite` 回退旧实现。
+
+### 已实现
+
+| 模块 | 说明 |
+|------|------|
+| `app/memory/lance_store.py` | 增删查搜、索引、SQLite 迁移 |
+| `app/memory/types.py` | `MemoryChunkView` 统一返回结构 |
+| `app/memory/vector.py` | 按 backend 路由 lance / sqlite |
+| `app/memory/indexer.py` | 经 `add_memory_chunk` 写入 Lance |
+| `app/main.py` | 启动迁移；`/api/config` 返回 `memory_backend` |
+
+### 配置
+
+```env
+MEMORY_BACKEND=lance
+LANCE_DB_PATH=data/lance
+OPENAI_EMBEDDING_DIMENSIONS=1536
+MEMORY_LANCE_BUILD_INDEX=true
+MEMORY_LANCE_INDEX_MIN_ROWS=256
+```
+
+### 验证
+
+1. `GET /api/config` → `memory_backend: "lance"`，`features.lance_memory: true`
+2. 对话几轮后 `data/lance/` 出现 Lance 数据目录
+3. 若曾有 SQLite 记忆，启动日志应含 `migrated N memory chunks`
+
+---
+
 ## 2026-05-23 — 第五周：鉴权 / API Key 与定时任务
 
 ### 目标（周计划对照）

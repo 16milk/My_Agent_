@@ -16,6 +16,7 @@ from app.migrate import migrate_sqlite_schema
 from app.agent import complete_with_tools, stream_with_tools, tools_for_request
 from app.memory.context import after_assistant_reply, prepare_chat_context
 from app.memory.indexer import index_folder
+from app.memory.lance_store import migrate_sqlite_to_lance_if_needed
 from app.memory.vector import delete_memory_chunk, list_memory_chunks
 from app.personas import list_personas
 from app.request_settings import effective_settings
@@ -69,6 +70,11 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(migrate_sqlite_schema)
+    factory = get_session_factory()
+    async with factory() as db:
+        mig = await migrate_sqlite_to_lance_if_needed(db, get_settings())
+        if mig.get("migrated"):
+            logger.info("lance migration: %s", mig)
     start_scheduler()
     await reload_scheduler_jobs()
     yield
@@ -187,6 +193,7 @@ async def get_config():
         available_models=s.resolved_available_models,
         personas=[PersonaItem(**p) for p in list_personas()],
         memory_enabled=s.memory_enabled,
+        memory_backend=s.memory_backend,
         auth_required=s.auth_enabled,
         auth_header_name=s.auth_header_name,
         scheduler_enabled=s.scheduler_enabled,
@@ -198,6 +205,7 @@ async def get_config():
             "usage_tracking": True,
             "auth": s.auth_enabled,
             "scheduler": s.scheduler_enabled,
+            "lance_memory": s.memory_backend.strip().lower() == "lance",
         },
     )
 
@@ -504,9 +512,10 @@ async def delete_session(session_id: str):
 async def list_memories(limit: int = 20):
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be 1-100")
+    settings = get_settings()
     factory = get_session_factory()
     async with factory() as db:
-        rows = await list_memory_chunks(db, limit=limit)
+        rows = await list_memory_chunks(db, settings, limit=limit)
     return [
         MemoryItem(
             id=r.id,
@@ -521,9 +530,10 @@ async def list_memories(limit: int = 20):
 
 @app.delete("/api/memory/{chunk_id}", status_code=204)
 async def remove_memory(chunk_id: int):
+    settings = get_settings()
     factory = get_session_factory()
     async with factory() as db:
-        ok = await delete_memory_chunk(db, chunk_id)
+        ok = await delete_memory_chunk(db, settings, chunk_id)
         await db.commit()
     if not ok:
         raise HTTPException(status_code=404, detail="memory not found")

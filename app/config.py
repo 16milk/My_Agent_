@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     memory_index_extensions: str = ".md,.txt,.markdown"
     memory_index_chunk_chars: int = 1500
 
+    # 向量存储：lance（默认）| sqlite（旧版 brute-force）
+    memory_backend: str = "lance"
+    lance_db_path: str = "data/lance"
+    openai_embedding_dimensions: int = 1536
+    memory_lance_build_index: bool = True
+    memory_lance_index_min_rows: int = 256
+
     # 第四周：产品化
     available_models: str = "gpt-4o-mini,gpt-4o,gpt-4.1-mini"
 

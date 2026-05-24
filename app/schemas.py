@@ -78,6 +78,7 @@ class ConfigResponse(BaseModel):
     available_models: list[str]
     personas: list[PersonaItem]
     memory_enabled: bool
+    memory_backend: str = "lance"
     auth_required: bool = False
     auth_header_name: str = "X-API-Key"
     scheduler_enabled: bool = True
